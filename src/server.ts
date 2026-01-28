@@ -10,21 +10,21 @@ import { fileURLToPath } from 'url';
 const app = express();
 const PORT = config.port;
 
-// Middleware
-// app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Middleware
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://freshdrops.netlify.app'
+  'https://freshdrops.netlify.app',
+  'https://approvals.freshdropsgh.com'
 ];
 
 app.use(cors({
   origin: [
     'http://localhost:5173',
     'https://freshdrops.netlify.app',
+    'https://approvals.freshdropsgh.com'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
