@@ -1,6 +1,6 @@
-import twilio from 'twilio';
-import jwt from 'jsonwebtoken';
-import { config } from '../config/env.js';
+import twilio from "twilio";
+import jwt from "jsonwebtoken";
+import { config } from "../config/env.js";
 
 const client = twilio(config.twilioAccountSid, config.twilioAuthToken);
 
@@ -13,28 +13,28 @@ interface ApprovalNotification {
   department: string;
   approverPhone: string;
 }
+
 interface SupportingDocument {
   name: string;
   filename: string;
   url: string;
 }
 
-
 const formatPhoneForWhatsApp = (phone: string): string => {
-  let formatted = phone.replace(/\s+/g, '');
-  
-  if (formatted.startsWith('0')) {
-    formatted = '+233' + formatted.substring(1);
-  } else if (!formatted.startsWith('+')) {
-    formatted = '+233' + formatted;
+  let formatted = phone.replace(/\s+/g, "");
+
+  if (formatted.startsWith("0")) {
+    formatted = "+233" + formatted.substring(1);
+  } else if (!formatted.startsWith("+")) {
+    formatted = "+233" + formatted;
   }
-  
+
   return `whatsapp:${formatted}`;
 };
 
 export const sendWhatsAppOTP = async (
   phone: string,
-  otp: string
+  otp: string,
 ): Promise<void> => {
   const message = `🔐 *Fresh Drops Approval Login*
 
@@ -57,64 +57,64 @@ If you did not request this login, please ignore this message.
 
     console.log(`✅ OTP sent to ${phone}`);
   } catch (error) {
-    console.error('❌ Failed to send OTP:', error);
+    console.error("❌ Failed to send OTP:", error);
     throw error;
   }
 };
 
-export const generateApprovalToken = (requestId: string, approverPhone: string): string => {
-  return jwt.sign(
-    { requestId, approverPhone },
-    config.jwtSecret,
-    { expiresIn: '7d' }
-  );
+export const generateApprovalToken = (
+  requestId: string,
+  approverPhone: string,
+): string => {
+  return jwt.sign({ requestId, approverPhone }, config.jwtSecret, {
+    expiresIn: "7d",
+  });
 };
 
-export const verifyApprovalToken = (token: string): { requestId: string; approverPhone: string } => {
+export const verifyApprovalToken = (
+  token: string,
+): { requestId: string; approverPhone: string } => {
   const decoded = jwt.verify(token, config.jwtSecret);
-  
-  if (typeof decoded === 'object' && decoded !== null && 'requestId' in decoded && 'approverPhone' in decoded) {
-    return decoded as { requestId: string; approverPhone: string };
+
+  if (
+    typeof decoded === "object" &&
+    decoded !== null &&
+    "requestId" in decoded &&
+    "approverPhone" in decoded
+  ) {
+    return decoded as {
+      requestId: string;
+      approverPhone: string;
+    };
   }
-  
-  throw new Error('Invalid token payload');
+
+  throw new Error("Invalid token payload");
 };
 
 export const sendApprovalRequest = async (
-  notification: ApprovalNotification & { supportingDocuments?: SupportingDocument[] }
+  notification: ApprovalNotification & {
+    supportingDocuments?: SupportingDocument[];
+  },
 ) => {
-  const token = generateApprovalToken(notification.requestId, notification.approverPhone);
+  const token = generateApprovalToken(
+    notification.requestId,
+    notification.approverPhone,
+  );
+
   const approvalLink = `${config.frontendUrl}/approve/${token}`;
 
-  // Format file links if any
-  let docsMessage = '';
-  if (notification.supportingDocuments && notification.supportingDocuments.length > 0) {
-    docsMessage = '\n📎 *Supporting Documents:*\n';
-    notification.supportingDocuments.forEach(doc => {
+  let docsMessage = "";
+  if (
+    notification.supportingDocuments &&
+    notification.supportingDocuments.length > 0
+  ) {
+    docsMessage = "\n📎 *Supporting Documents:*\n";
+    notification.supportingDocuments.forEach((doc) => {
       docsMessage += `- ${doc.name}: ${doc.url}\n`;
     });
   }
 
-  // Button payloads
-  const approvePayload = `APPROVE ${notification.requestId}`;
-  const rejectPayload = `REJECT ${notification.requestId}`; // reason can still be typed after if needed
-
-  try {
-    (client.messages.create as any)({
-  from: config.twilioWhatsAppFrom,
-  to: formatPhoneForWhatsApp(notification.approverPhone),
-
-  body: `Fresh Drops Approval
-
-Reply:
-APPROVE ${notification.requestId}
-or
-REJECT ${notification.requestId}`,
-
-  interactive: {
-    type: 'button',
-    body: {
-      text: `🏭 *Fresh Drops Water Factory*
+  const message = `🏭 *Fresh Drops Water Factory*
 💰 *Cash Request Approval*
 
 📋 *Request ID:* ${notification.requestId}
@@ -126,47 +126,50 @@ REJECT ${notification.requestId}`,
 📝 *Purpose:* ${notification.purpose}
 ${docsMessage}
 ━━━━━━━━━━━━━━━━━━━━
-*To Approve or Reject:*`
-    },
-    action: {
-      buttons: [
-        {
-          type: 'reply',
-          reply: { id: approvePayload, title: '✅ Approve' }
-        },
-        {
-          type: 'reply',
-          reply: { id: rejectPayload, title: '❌ Reject' }
-        }
-      ]
-    }
-  }
-});
+*To Approve or Reject:*
 
+✅ *Reply:* APPROVE ${notification.requestId}
+❌ *Reply:* REJECT ${notification.requestId} [reason]
 
-    console.log(`✅ Interactive WhatsApp sent to ${notification.approverPhone}`);
+🔗 *Or click:* ${approvalLink}
+
+⏰ Submitted: ${new Date().toLocaleString("en-GB", {
+    timeZone: "Africa/Accra",
+  })}`;
+
+  try {
+    await client.messages.create({
+      from: config.twilioWhatsAppFrom,
+      to: formatPhoneForWhatsApp(notification.approverPhone),
+      body: message,
+    });
+
+    console.log(`✅ WhatsApp sent to ${notification.approverPhone}`);
   } catch (error) {
-    console.error('❌ Failed to send interactive WhatsApp:', error);
+    console.error("❌ Failed to send WhatsApp:", error);
     throw error;
   }
 };
 
-
-
 export const sendApprovalConfirmation = async (
   phone: string,
   requestId: string,
-  action: 'approved' | 'rejected',
-  requester: string
+  action: "approved" | "rejected",
+  requester: string,
 ): Promise<void> => {
-  const emoji = action === 'approved' ? '✅' : '❌';
+  const emoji = action === "approved" ? "✅" : "❌";
+
   const message = `${emoji} *Request ${action.toUpperCase()}*
 
 Request ID: ${requestId}
 Requesting Officer: ${requester}
 
-You have just  ${action} a request.
-${action === 'approved' ? 'Payment will be processed on the scheduled payment day.' : 'The requester has been notified.'}
+You have just ${action} a request.
+${
+  action === "approved"
+    ? "Payment will be processed on the scheduled payment day."
+    : "The requester has been notified."
+}
 
 🏭 Fresh Drops Water Factory`;
 
@@ -177,19 +180,19 @@ ${action === 'approved' ? 'Payment will be processed on the scheduled payment da
       body: message,
     });
   } catch (error) {
-    console.error('❌ Failed to send confirmation:', error);
+    console.error("❌ Failed to send confirmation:", error);
   }
 };
 
 export const notifyRequester = async (
   phone: string,
   requestId: string,
-  action: 'submitted' | 'approved' | 'rejected',
-  approverOrComment?: string
+  action: "submitted" | "approved" | "rejected",
+  approverOrComment?: string,
 ): Promise<void> => {
-  let message = '';
+  let message = "";
 
-  if (action === 'submitted') {
+  if (action === "submitted") {
     message = `📌 *Your Cash Request has been submitted*
 
 Request ID: ${requestId}
@@ -197,7 +200,7 @@ Request ID: ${requestId}
 You will be notified once it is approved or rejected.
 
 🏭 Fresh Drops Water Factory`;
-  } else if (action === 'approved') {
+  } else if (action === "approved") {
     message = `✅ *Your Cash Request has been approved*
 
 Request ID: ${requestId}
@@ -206,7 +209,7 @@ Approved by: ${approverOrComment}
 ✓ Payment will be processed on the scheduled day.
 
 🏭 Fresh Drops Water Factory`;
-  } else if (action === 'rejected') {
+  } else if (action === "rejected") {
     message = `❌ *Your Cash Request has been rejected*
 
 Request ID: ${requestId}
@@ -223,8 +226,9 @@ Rejected by: ${approverOrComment}
       to: formatPhoneForWhatsApp(phone),
       body: message,
     });
+
     console.log(`✅ WhatsApp sent to requester ${phone}`);
   } catch (error) {
-    console.error('❌ Failed to notify requester:', error);
+    console.error("❌ Failed to notify requester:", error);
   }
 };
