@@ -101,12 +101,20 @@ export const sendApprovalRequest = async (
 
   try {
     (client.messages.create as any)({
-      from: config.twilioWhatsAppFrom,
-      to: formatPhoneForWhatsApp(notification.approverPhone),
-      interactive: {
-        type: 'button',
-        body: {
-          text: `🏭 *Fresh Drops Water Factory*
+  from: config.twilioWhatsAppFrom,
+  to: formatPhoneForWhatsApp(notification.approverPhone),
+
+  body: `Fresh Drops Approval
+
+Reply:
+APPROVE ${notification.requestId}
+or
+REJECT ${notification.requestId}`,
+
+  interactive: {
+    type: 'button',
+    body: {
+      text: `🏭 *Fresh Drops Water Factory*
 💰 *Cash Request Approval*
 
 📋 *Request ID:* ${notification.requestId}
@@ -119,27 +127,22 @@ export const sendApprovalRequest = async (
 ${docsMessage}
 ━━━━━━━━━━━━━━━━━━━━
 *To Approve or Reject:*`
+    },
+    action: {
+      buttons: [
+        {
+          type: 'reply',
+          reply: { id: approvePayload, title: '✅ Approve' }
         },
-        action: {
-          buttons: [
-            {
-              type: 'reply',
-              reply: {
-                id: approvePayload,
-                title: '✅ Approve'
-              }
-            },
-            {
-              type: 'reply',
-              reply: {
-                id: rejectPayload,
-                title: '❌ Reject'
-              }
-            }
-          ]
+        {
+          type: 'reply',
+          reply: { id: rejectPayload, title: '❌ Reject' }
         }
-      }
-    });
+      ]
+    }
+  }
+});
+
 
     console.log(`✅ Interactive WhatsApp sent to ${notification.approverPhone}`);
   } catch (error) {
