@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import { config } from './config/env.js';  // Import config first!
+import { config } from './config/env.js';  
 import router from './routes/index.js';
 import { seedSuperApprover } from './seedApprover.js';
 import path from 'path';
@@ -55,7 +55,6 @@ const startServer = async () => {
     await mongoose.connect(config.mongoUri);
     console.log('✅ Connected to MongoDB');
 
-    // 🔥 SEED SUPER APPROVER HERE
     await seedSuperApprover();
 
     app.listen(PORT, () => {
