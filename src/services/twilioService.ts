@@ -80,21 +80,33 @@ export const verifyApprovalToken = (token: string): { requestId: string; approve
   throw new Error('Invalid token payload');
 };
 
-export const sendApprovalRequest = async (notification: ApprovalNotification & { supportingDocuments?: SupportingDocument[] }) => {
+export const sendApprovalRequest = async (
+  notification: ApprovalNotification & { supportingDocuments?: SupportingDocument[] }
+) => {
   const token = generateApprovalToken(notification.requestId, notification.approverPhone);
   const approvalLink = `${config.frontendUrl}/approve/${token}`;
 
   // Format file links if any
-let docsMessage = '';
-if (notification.supportingDocuments && notification.supportingDocuments.length > 0) {
-  docsMessage = '\n📎 *Supporting Documents:*\n';
-  notification.supportingDocuments.forEach(doc => {
-    docsMessage += `- ${doc.name}: ${doc.url}\n`;
-  });
-}
+  let docsMessage = '';
+  if (notification.supportingDocuments && notification.supportingDocuments.length > 0) {
+    docsMessage = '\n📎 *Supporting Documents:*\n';
+    notification.supportingDocuments.forEach(doc => {
+      docsMessage += `- ${doc.name}: ${doc.url}\n`;
+    });
+  }
 
+  // Button payloads
+  const approvePayload = `APPROVE ${notification.requestId}`;
+  const rejectPayload = `REJECT ${notification.requestId}`; // reason can still be typed after if needed
 
-  const message = `🏭 *Fresh Drops Water Factory*
+  try {
+    (client.messages.create as any)({
+      from: config.twilioWhatsAppFrom,
+      to: formatPhoneForWhatsApp(notification.approverPhone),
+      interactive: {
+        type: 'button',
+        body: {
+          text: `🏭 *Fresh Drops Water Factory*
 💰 *Cash Request Approval*
 
 📋 *Request ID:* ${notification.requestId}
@@ -106,27 +118,36 @@ if (notification.supportingDocuments && notification.supportingDocuments.length 
 📝 *Purpose:* ${notification.purpose}
 ${docsMessage}
 ━━━━━━━━━━━━━━━━━━━━
-*To Approve or Reject:*
-
-✅ *Reply:* APPROVE ${notification.requestId}
-❌ *Reply:* REJECT ${notification.requestId} [reason]
-
-🔗 *Or click:* ${approvalLink}
-
-⏰ Submitted: ${new Date().toLocaleString('en-GB', { timeZone: 'Africa/Accra' })}`;
-
-  try {
-    await client.messages.create({
-      from: config.twilioWhatsAppFrom,
-      to: formatPhoneForWhatsApp(notification.approverPhone),
-      body: message,
+*To Approve or Reject:*`
+        },
+        action: {
+          buttons: [
+            {
+              type: 'reply',
+              reply: {
+                id: approvePayload,
+                title: '✅ Approve'
+              }
+            },
+            {
+              type: 'reply',
+              reply: {
+                id: rejectPayload,
+                title: '❌ Reject'
+              }
+            }
+          ]
+        }
+      }
     });
-    console.log(`✅ WhatsApp sent to ${notification.approverPhone}`);
+
+    console.log(`✅ Interactive WhatsApp sent to ${notification.approverPhone}`);
   } catch (error) {
-    console.error('❌ Failed to send WhatsApp:', error);
+    console.error('❌ Failed to send interactive WhatsApp:', error);
     throw error;
   }
 };
+
 
 
 export const sendApprovalConfirmation = async (
