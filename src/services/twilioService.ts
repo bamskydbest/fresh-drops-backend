@@ -95,7 +95,7 @@ export const sendWhatsAppOTP = async (
 
 Your One-Time Password (OTP) is:
 
-👉 *${otp}*
+👉 ${otp}
 
 ⏳ This code expires in *5 minutes*.
 
