@@ -44,11 +44,19 @@ const formatPhoneForSMS = (phone: string): string => {
   return formatted;
 };
 
+/**
+ * ✅ DUAL DELIVERY:
+ * - Always tries WhatsApp
+ * - Always tries SMS
+ * - Logs whether SMS was fallback or dual
+ */
 const sendWhatsAppWithSMSFallback = async (
   toPhone: string,
   message: string,
   logLabel: string,
 ): Promise<void> => {
+  let whatsappSent = false;
+
   try {
     await client.messages.create({
       from: config.twilioWhatsAppFrom,
@@ -56,20 +64,26 @@ const sendWhatsAppWithSMSFallback = async (
       body: message,
     });
 
+    whatsappSent = true;
     console.log(`✅ WhatsApp sent (${logLabel})`);
   } catch (waError) {
-    console.error(
-      `❌ WhatsApp failed (${logLabel}), falling back to SMS`,
-      waError,
-    );
+    console.error(`❌ WhatsApp failed (${logLabel})`, waError);
+  }
 
+  try {
     await client.messages.create({
       from: config.twilioSmsFrom,
       to: formatPhoneForSMS(toPhone),
       body: message,
     });
 
-    console.log(`📩 SMS sent (${logLabel})`);
+    console.log(
+      `📩 SMS sent (${logLabel})${
+        whatsappSent ? " (dual delivery)" : " (fallback)"
+      }`,
+    );
+  } catch (smsError) {
+    console.error(`❌ SMS failed (${logLabel})`, smsError);
   }
 };
 
