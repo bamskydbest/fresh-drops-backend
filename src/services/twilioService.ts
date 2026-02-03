@@ -32,6 +32,47 @@ const formatPhoneForWhatsApp = (phone: string): string => {
   return `whatsapp:${formatted}`;
 };
 
+const formatPhoneForSMS = (phone: string): string => {
+  let formatted = phone.replace(/\s+/g, "");
+
+  if (formatted.startsWith("0")) {
+    formatted = "+233" + formatted.substring(1);
+  } else if (!formatted.startsWith("+")) {
+    formatted = "+233" + formatted;
+  }
+
+  return formatted;
+};
+
+const sendWhatsAppWithSMSFallback = async (
+  toPhone: string,
+  message: string,
+  logLabel: string,
+): Promise<void> => {
+  try {
+    await client.messages.create({
+      from: config.twilioWhatsAppFrom,
+      to: formatPhoneForWhatsApp(toPhone),
+      body: message,
+    });
+
+    console.log(`✅ WhatsApp sent (${logLabel})`);
+  } catch (waError) {
+    console.error(
+      `❌ WhatsApp failed (${logLabel}), falling back to SMS`,
+      waError,
+    );
+
+    await client.messages.create({
+      from: config.twilioSmsFrom,
+      to: formatPhoneForSMS(toPhone),
+      body: message,
+    });
+
+    console.log(`📩 SMS sent (${logLabel})`);
+  }
+};
+
 export const sendWhatsAppOTP = async (
   phone: string,
   otp: string,
@@ -48,18 +89,7 @@ If you did not request this login, please ignore this message.
 
 🏭 Fresh Drops Water Factory`;
 
-  try {
-    await client.messages.create({
-      from: config.twilioWhatsAppFrom,
-      to: formatPhoneForWhatsApp(phone),
-      body: message,
-    });
-
-    console.log(`✅ OTP sent to ${phone}`);
-  } catch (error) {
-    console.error("❌ Failed to send OTP:", error);
-    throw error;
-  }
+  await sendWhatsAppWithSMSFallback(phone, message, "OTP");
 };
 
 export const generateApprovalToken = (
@@ -95,7 +125,7 @@ export const sendApprovalRequest = async (
   notification: ApprovalNotification & {
     supportingDocuments?: SupportingDocument[];
   },
-) => {
+): Promise<void> => {
   const token = generateApprovalToken(
     notification.requestId,
     notification.approverPhone,
@@ -137,18 +167,11 @@ ${docsMessage}
     timeZone: "Africa/Accra",
   })}`;
 
-  try {
-    await client.messages.create({
-      from: config.twilioWhatsAppFrom,
-      to: formatPhoneForWhatsApp(notification.approverPhone),
-      body: message,
-    });
-
-    console.log(`✅ WhatsApp sent to ${notification.approverPhone}`);
-  } catch (error) {
-    console.error("❌ Failed to send WhatsApp:", error);
-    throw error;
-  }
+  await sendWhatsAppWithSMSFallback(
+    notification.approverPhone,
+    message,
+    "Approval Request",
+  );
 };
 
 export const sendApprovalConfirmation = async (
@@ -173,15 +196,11 @@ ${
 
 🏭 Fresh Drops Water Factory`;
 
-  try {
-    await client.messages.create({
-      from: config.twilioWhatsAppFrom,
-      to: formatPhoneForWhatsApp(phone),
-      body: message,
-    });
-  } catch (error) {
-    console.error("❌ Failed to send confirmation:", error);
-  }
+  await sendWhatsAppWithSMSFallback(
+    phone,
+    message,
+    "Approval Confirmation",
+  );
 };
 
 export const notifyRequester = async (
@@ -220,15 +239,9 @@ Rejected by: ${approverOrComment}
 🏭 Fresh Drops Water Factory`;
   }
 
-  try {
-    await client.messages.create({
-      from: config.twilioWhatsAppFrom,
-      to: formatPhoneForWhatsApp(phone),
-      body: message,
-    });
-
-    console.log(`✅ WhatsApp sent to requester ${phone}`);
-  } catch (error) {
-    console.error("❌ Failed to notify requester:", error);
-  }
+  await sendWhatsAppWithSMSFallback(
+    phone,
+    message,
+    "Requester Notification",
+  );
 };

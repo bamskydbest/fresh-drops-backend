@@ -22,10 +22,8 @@ const parseWhatsAppMessage = (body: string): { action: 'approve' | 'reject' | nu
 };
 
 const normalizePhone = (phone: string): string => {
-  // Remove whatsapp: prefix if present
   let normalized = phone.replace('whatsapp:', '');
   
-  // Convert to Ghana format - keep the +233 format for matching
   if (!normalized.startsWith('+')) {
     if (normalized.startsWith('233')) {
       normalized = '+' + normalized;
@@ -59,7 +57,6 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Find the approver - check both phone formats
     const approver = await Approver.findOne({ 
       phone: { $in: [fromPhone, fromPhone.replace('+233', '0')] },
       isActive: true 

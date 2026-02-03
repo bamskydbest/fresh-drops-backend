@@ -28,6 +28,8 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET as string,
   frontendUrl: process.env.FRONTEND_URL as string,
   superApproverPhone: process.env.SUPER_APPROVER_PHONE as string,
+  twilioSmsFrom: process.env.TWILIO_SMS_FROM as string,
+
 };
 
 console.log('✅ Environment variables loaded successfully');
